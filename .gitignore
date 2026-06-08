@@ -1,0 +1,65 @@
+# ── Python ──────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyd
+
+# ── uv / pip ─────────────────────────────────────────────────
+.venv/
+venv/
+.env
+*.egg-info/
+dist/
+build/
+*.whl
+uv.lock
+
+# ── Flet build artifacts ─────────────────────────────────────
+build/
+.flet/
+
+# ── Android / APK ───────────────────────────────────────────
+*.apk
+*.aab
+*.keystore
+*.jks
+local.properties
+android/.gradle/
+android/app/build/
+android/build/
+android/.idea/
+*.dex
+
+# ── MediaPipe / OpenCV cache ─────────────────────────────────
+*.pb
+*.tflite
+*.pkl
+mediapipe_models/
+
+# ── IDE / OS ──────────────────────────────────────────────────
+.vscode/
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+
+# ── Testing ───────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ── Logs ──────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Agents ──────────────────────────────────────────────────────
+.agents/
+skills-lock.json
+HUS.md
+
+hand_*.task
