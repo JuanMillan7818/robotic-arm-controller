@@ -14,7 +14,9 @@ Each Arduino command moves ±15°. Slider drag calculates how many steps needed.
 
 from __future__ import annotations
 
+import math
 import threading
+import time
 
 import flet as ft
 
@@ -24,34 +26,60 @@ STEP = 15  # Arduino moves ±15° per command
 
 SERVOS: list[dict] = [
     {
-        "id": "BASE",          "label": "Base de rotación",          "sub": "Canal 0 · A/D",
+        "id": "BASE",
+        "label": "Base de rotación",
+        "sub": "Canal 0 · A/D",
         "icon": ft.Icons.SYNC,
-        "plus": "A", "minus": "D",
-        "init": 90, "min": 0, "max": 180,
+        "plus": "A",
+        "minus": "D",
+        "init": 90,
+        "min": 0,
+        "max": 180,
     },
     {
-        "id": "BASE_PRINCIPAL","label": "Base de avance","sub": "Canales 3+6 · W/S",
+        "id": "BASE_PRINCIPAL",
+        "label": "Base de avance",
+        "sub": "Canales 3+6 · W/S",
         "icon": ft.Icons.ARROW_UPWARD,
-        "plus": "W", "minus": "S",
-        "init": 90, "min": 10, "max": 170,
+        "plus": "W",
+        "minus": "S",
+        "init": 90,
+        "min": 10,
+        "max": 170,
     },
     {
-        "id": "EXT1",          "label": "Hombro",   "sub": "Canal 9 · K/I",
+        "id": "EXT1",
+        "label": "Hombro",
+        "sub": "Canal 9 · K/I",
         "icon": ft.Icons.TURN_RIGHT,
-        "plus": "K", "minus": "I",
-        "init": 90, "min": 0, "max": 180,
+        "plus": "K",
+        "minus": "I",
+        "init": 90,
+        "min": 0,
+        "max": 180,
     },
     {
-        "id": "EXT2",          "label": "Codo",   "sub": "Canal 12 · L/J",
+        "id": "EXT2",
+        "label": "Codo",
+        "sub": "Canal 12 · L/J",
         "icon": ft.Icons.GESTURE,
-        "plus": "L", "minus": "J",
-        "init": 90, "min": 10, "max": 160,
+        "plus": "L",
+        "minus": "J",
+        "init": 90,
+        "min": 10,
+        "max": 160,
     },
     {
-        "id": "PINZA",         "label": "Pinza",         "sub": "Canal 15 · C/O",
+        "id": "PINZA",
+        "label": "Pinza",
+        "sub": "Canal 15 · C/O",
         "icon": ft.Icons.OPEN_IN_FULL,
-        "plus": "C", "minus": "O",
-        "init": 110, "min": 110, "max": 145,
+        "plus": "C",
+        "minus": "O",
+        "init": 110,
+        "min": 110,
+        "max": 145,
+        "vis_step": 5,   # finer slider divisions; actual step is still STEP=15
     },
 ]
 
@@ -144,10 +172,15 @@ class ServoPanel(ft.Container):
             controls=[
                 ft.Row(
                     controls=[
-                        ft.Icon(ft.Icons.PRECISION_MANUFACTURING, color=C_ACCENT, size=22),
+                        ft.Icon(
+                            ft.Icons.PRECISION_MANUFACTURING, color=C_ACCENT, size=22
+                        ),
                         ft.Text(
                             "CONTROL BRAZO",
-                            size=14, weight=ft.FontWeight.BOLD, color=C_TEXT, expand=True,
+                            size=14,
+                            weight=ft.FontWeight.BOLD,
+                            color=C_TEXT,
+                            expand=True,
                         ),
                         self._status_dot,
                         ft.Container(width=6),
@@ -158,7 +191,9 @@ class ServoPanel(ft.Container):
                 ft.Divider(height=20, color=C_BORDER),
                 ft.Text(
                     "CONEXIÓN BLUETOOTH",
-                    size=11, color=C_TEXT2, weight=ft.FontWeight.W_600,
+                    size=11,
+                    color=C_TEXT2,
+                    weight=ft.FontWeight.W_600,
                     style=ft.TextStyle(letter_spacing=1.2),
                 ),
                 ft.Container(height=8),
@@ -173,14 +208,18 @@ class ServoPanel(ft.Container):
                     controls=[
                         ft.Text(
                             "SERVOMOTORES",
-                            size=11, color=C_TEXT2, weight=ft.FontWeight.W_600,
+                            size=11,
+                            color=C_TEXT2,
+                            weight=ft.FontWeight.W_600,
                             style=ft.TextStyle(letter_spacing=1.2),
                             expand=True,
                         ),
                         ft.TextButton(
                             content=ft.Row(
                                 [
-                                    ft.Icon(ft.Icons.RESTART_ALT, size=14, color=C_TEXT2),
+                                    ft.Icon(
+                                        ft.Icons.RESTART_ALT, size=14, color=C_TEXT2
+                                    ),
                                     ft.Text("Restablecer", size=11, color=C_TEXT2),
                                 ],
                                 spacing=4,
@@ -200,12 +239,15 @@ class ServoPanel(ft.Container):
         sid = servo["id"]
         angle = self._angles[sid]
         rng = servo["max"] - servo["min"]
-        divisions = rng // STEP  # snap to 15° steps
+        divisions = rng // servo.get("vis_step", STEP)
 
         val_text = ft.Text(
             f"{angle}°",
-            color=C_ACCENT, size=14, weight=ft.FontWeight.BOLD,
-            width=44, text_align=ft.TextAlign.RIGHT,
+            color=C_ACCENT,
+            size=14,
+            weight=ft.FontWeight.BOLD,
+            width=44,
+            text_align=ft.TextAlign.RIGHT,
         )
         slider = ft.Slider(
             min=servo["min"],
@@ -238,8 +280,12 @@ class ServoPanel(ft.Container):
                             ft.Column(
                                 spacing=0,
                                 controls=[
-                                    ft.Text(servo["label"], size=13,
-                                            weight=ft.FontWeight.W_600, color=C_TEXT),
+                                    ft.Text(
+                                        servo["label"],
+                                        size=13,
+                                        weight=ft.FontWeight.W_600,
+                                        color=C_TEXT,
+                                    ),
                                     ft.Text(servo["sub"], size=10, color=C_TEXT2),
                                 ],
                                 expand=True,
@@ -264,7 +310,12 @@ class ServoPanel(ft.Container):
         """On release: compute delta steps → send N single-char commands."""
         target = int(e.control.value)
         current = self._angles[servo["id"]]
-        delta = round((target - current) / STEP)
+        diff = target - current
+        # ceil so edge positions (e.g. PINZA 110→145) always reach target;
+        # Arduino constrain() clamps any overshoot on the hardware side.
+        delta = (
+            math.ceil(abs(diff) / STEP) * (1 if diff > 0 else -1) if diff != 0 else 0
+        )
         if delta == 0:
             return
 
@@ -272,42 +323,60 @@ class ServoPanel(ft.Container):
         n = abs(delta)
 
         # Update local tracking (clamped to real limits)
-        self._angles[servo["id"]] = max(
-            servo["min"], min(servo["max"], current + delta * STEP)
-        )
+        actual = max(servo["min"], min(servo["max"], current + delta * STEP))
+        self._angles[servo["id"]] = actual
+
+        # Snap slider + label back to actual angle — prevents desync when vis_step < STEP
+        sid = servo["id"]
+        if sid in self._sliders:
+            self._sliders[sid].value = float(actual)
+        if sid in self._val_texts:
+            self._val_texts[sid].value = f"{actual}°"
+        try:
+            self._page.update()
+        except Exception:
+            pass
 
         def _send() -> None:
             for _ in range(n):
                 self._comm.send(char)
+                time.sleep(0.06)  # 60ms between chars — Arduino loop runs every 15ms
 
         threading.Thread(target=_send, daemon=True).start()
 
     # ── Public: sync PINZA from gesture panel ────────────────────────────────
 
-    def set_pinza_angle(self, angle: int) -> None:
-        """Update PINZA slider to reflect gesture-controlled angle."""
-        clamped = max(110, min(145, angle))
-        self._angles["PINZA"] = clamped
-        slider = self._sliders.get("PINZA")
-        val_text = self._val_texts.get("PINZA")
-        if slider:
-            slider.value = float(clamped)
-        if val_text:
-            val_text.value = f"{clamped}°"
+    def set_servo_angle(self, sid: str, angle: int) -> None:
+        """Update any servo slider display (called from gesture panel, no command sent)."""
+        servo = _SERVO_MAP.get(sid)
+        if not servo:
+            return
+        clamped = max(servo["min"], min(servo["max"], angle))
+        self._angles[sid] = clamped
+        if sid in self._sliders:
+            self._sliders[sid].value = float(clamped)
+        if sid in self._val_texts:
+            self._val_texts[sid].value = f"{clamped}°"
         try:
             self._page.update()
         except Exception:
             pass
 
-    def set_pinza_enabled(self, enabled: bool) -> None:
-        """Disable PINZA slider when gesture mode is active."""
-        slider = self._sliders.get("PINZA")
-        if slider:
-            slider.disabled = not enabled
+    def set_gesture_mode(self, active: bool) -> None:
+        """Disable all sliders when gesture mode is active."""
+        for slider in self._sliders.values():
+            slider.disabled = active
         try:
             self._page.update()
         except Exception:
             pass
+
+    # Keep legacy aliases so existing call sites don't break
+    def set_pinza_angle(self, angle: int) -> None:
+        self.set_servo_angle("PINZA", angle)
+
+    def set_pinza_enabled(self, enabled: bool) -> None:
+        self.set_gesture_mode(not enabled)
 
     # ── Reset ─────────────────────────────────────────────────────────────────
 
@@ -317,7 +386,12 @@ class ServoPanel(ft.Container):
         for servo in SERVOS:
             sid = servo["id"]
             current = self._angles[sid]
-            delta = round((servo["init"] - current) / STEP)
+            diff = servo["init"] - current
+            delta = (
+                math.ceil(abs(diff) / STEP) * (1 if diff > 0 else -1)
+                if diff != 0
+                else 0
+            )
             if delta == 0:
                 continue
             char = servo["plus"] if delta > 0 else servo["minus"]
@@ -332,6 +406,7 @@ class ServoPanel(ft.Container):
         def _send() -> None:
             for c in cmds:
                 self._comm.send(c)
+                time.sleep(0.06)
 
         threading.Thread(target=_send, daemon=True).start()
 
@@ -347,11 +422,17 @@ class ServoPanel(ft.Container):
         def _scan() -> None:
             self._devices = self._comm.list_devices()
             opts = [
-                ft.DropdownOption(key=d["address"], text=f"{d['name']}  —  {d['address']}")
+                ft.DropdownOption(
+                    key=d["address"], text=f"{d['name']}  —  {d['address']}"
+                )
                 for d in self._devices
             ]
             if not opts:
-                opts = [ft.DropdownOption(key="__none__", text="Sin dispositivos encontrados")]
+                opts = [
+                    ft.DropdownOption(
+                        key="__none__", text="Sin dispositivos encontrados"
+                    )
+                ]
             self._device_dd.options = opts
             self._device_dd.value = None
             self._device_dd.update()
@@ -367,6 +448,12 @@ class ServoPanel(ft.Container):
         if self._comm.is_connected:
             self._comm.disconnect()
             self._set_status(connected=False)
+            self._btn_icon.name = ft.Icons.BLUETOOTH
+            self._btn_icon.color = "#0A0E1A"
+            self._btn_label.value = "CONECTAR"
+            self._btn_label.color = "#0A0E1A"
+            self._connect_btn.bgcolor = C_ACCENT
+            self._connect_btn.update()
         else:
             if not self._selected_addr:
                 return
@@ -379,7 +466,9 @@ class ServoPanel(ft.Container):
                 ok = self._comm.connect(self._selected_addr)  # type: ignore[arg-type]
                 self._set_status(connected=ok)
                 txt_color = "#E2E8F0" if ok else "#0A0E1A"
-                self._btn_icon.name = ft.Icons.BLUETOOTH_DISABLED if ok else ft.Icons.BLUETOOTH
+                self._btn_icon.name = (
+                    ft.Icons.BLUETOOTH_DISABLED if ok else ft.Icons.BLUETOOTH
+                )
                 self._btn_icon.color = txt_color
                 self._btn_label.value = "DESCONECTAR" if ok else "CONECTAR"
                 self._btn_label.color = txt_color

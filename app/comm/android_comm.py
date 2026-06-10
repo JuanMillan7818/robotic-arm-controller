@@ -6,7 +6,7 @@ This module is ONLY functional inside a Flet APK build on Android.
 The HC-05 must be paired first via Android Bluetooth settings.
 Device list shows paired (bonded) devices — user selects HC-05.
 
-Protocol: 'SERVO_ID:ANGLE\n' sent as UTF-8 bytes.
+Protocol: single ASCII char per command (A/D/W/S/K/I/J/L/C/O).
 """
 from __future__ import annotations
 
@@ -112,8 +112,8 @@ class AndroidComm(BtComm):
         if not self.is_connected or self._out_stream is None:
             return False
         try:
-            data = bytearray(cmd[0].encode("utf-8"))
-            self._out_stream.write(data, 0, 1)
+            # OutputStream.write(int) writes one byte — avoids pyjnius byte[] coercion
+            self._out_stream.write(ord(cmd[0]))
             self._out_stream.flush()
             return True
         except Exception:

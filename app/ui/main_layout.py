@@ -16,11 +16,15 @@ Android: ServoPanel full screen.
 from __future__ import annotations
 
 import atexit
+import threading
 import flet as ft
+import logging
 
 from app.comm.base import BtComm
 from app.ui.servo_panel import ServoPanel
 from app.ui.gesture_panel import GesturePanel
+
+log = logging.getLogger(__name__)
 
 C_BG = "#0A0E1A"
 C_BORDER = "#1A2440"
@@ -33,8 +37,10 @@ C_SURFACE = "#141C2E"
 def _make_comm(page: ft.Page) -> BtComm:
     if page.platform == ft.PagePlatform.ANDROID:
         from app.comm.android_comm import AndroidComm
+
         return AndroidComm()
     from app.comm.serial_comm import SerialComm
+
     return SerialComm()
 
 
@@ -57,7 +63,9 @@ def _build_reference_tab() -> ft.Container:
                 ),
                 ft.Text(
                     "Identifica cada motor según el slider",
-                    size=11, color=C_TEXT2, text_align=ft.TextAlign.CENTER,
+                    size=11,
+                    color=C_TEXT2,
+                    text_align=ft.TextAlign.CENTER,
                 ),
             ],
         ),
@@ -85,8 +93,8 @@ def build_layout(page: ft.Page) -> None:
         gesture_panel = GesturePanel(
             comm=comm,
             page=page,
-            on_pinza_angle=servo_panel.set_pinza_angle,
-            on_pinza_enabled=servo_panel.set_pinza_enabled,
+            on_servo_angle=servo_panel.set_servo_angle,
+            on_gesture_active=servo_panel.set_gesture_mode,
         )
 
     # ── Top bar ───────────────────────────────────────────────────────────────
@@ -101,13 +109,17 @@ def build_layout(page: ft.Page) -> None:
                 ft.Container(width=10),
                 ft.Text(
                     "ROBOTIC ARM CONTROLLER",
-                    size=15, weight=ft.FontWeight.BOLD, color="#E2E8F0",
+                    size=15,
+                    weight=ft.FontWeight.BOLD,
+                    color="#E2E8F0",
                     style=ft.TextStyle(letter_spacing=1.5),
                     expand=True,
                 ),
                 ft.Text(
                     "ANDROID" if is_android else "DESKTOP",
-                    size=10, color=C_TEXT2, weight=ft.FontWeight.W_600,
+                    size=10,
+                    color=C_TEXT2,
+                    weight=ft.FontWeight.W_600,
                     style=ft.TextStyle(letter_spacing=1.2),
                 ),
             ],
@@ -141,14 +153,19 @@ def build_layout(page: ft.Page) -> None:
         tab_ref_btn = ft.TextButton(
             content=ft.Row(
                 [ft.Icon(ft.Icons.SCHEMA, size=16), ft.Text("Referencia", size=13)],
-                spacing=6, tight=True,
+                spacing=6,
+                tight=True,
             ),
             style=_tab_style(True),
         )
         tab_gest_btn = ft.TextButton(
             content=ft.Row(
-                [ft.Icon(ft.Icons.CAMERA_ALT, size=16), ft.Text("Control Gestos", size=13)],
-                spacing=6, tight=True,
+                [
+                    ft.Icon(ft.Icons.CAMERA_ALT, size=16),
+                    ft.Text("Control Gestos", size=13),
+                ],
+                spacing=6,
+                tight=True,
             ),
             style=_tab_style(False),
         )
@@ -214,12 +231,16 @@ def build_layout(page: ft.Page) -> None:
 
     atexit.register(_shutdown)
 
-    def _on_close(e: ft.WindowEvent) -> None:
-        _shutdown()
-        page.window.destroy()
+    def _on_window_event(e: ft.WindowEvent) -> None:
+        if e.data == "close":
+            # Run shutdown off the event thread — join() would block it otherwise
+            def _do() -> None:
+                _shutdown()
+                page.window.destroy()
+            threading.Thread(target=_do, daemon=True).start()
 
     page.window.prevent_close = True
-    page.window.on_close = _on_close
+    page.window.on_event = _on_window_event
 
     # ── Assemble ──────────────────────────────────────────────────────────────
     page.add(

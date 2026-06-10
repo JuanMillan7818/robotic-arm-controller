@@ -7,9 +7,10 @@ Usage:
     comm = SerialComm()
     devices = comm.list_devices()          # list available COM ports
     comm.connect("COM3")                   # or "/dev/rfcomm0" on Linux
-    comm.send("PINZA", 90)                 # → writes "PINZA:90\n"
+    comm.send("A")                         # → writes single ASCII char
     comm.disconnect()
 """
+
 import logging
 import re
 import sys
@@ -35,6 +36,7 @@ def _bt_friendly_name(hwid: str) -> str | None:
     mac = match.group(1).lower()
     try:
         import winreg
+
         key = winreg.OpenKey(
             winreg.HKEY_LOCAL_MACHINE,
             rf"SYSTEM\CurrentControlSet\Services\BTHPORT\Parameters\Devices\{mac}",
@@ -66,7 +68,9 @@ class SerialComm(BtComm):
         """
         ports = serial.tools.list_ports.comports()
         all_ports = sorted(ports, key=lambda p: p.device)
-        log.debug("Todos los COM: %s", [(p.device, p.description, p.hwid) for p in all_ports])
+        log.debug(
+            "Todos los COM: %s", [(p.device, p.description, p.hwid) for p in all_ports]
+        )
         bt_ports = [p for p in all_ports if "bluetooth" in p.description.lower()]
         display = bt_ports if bt_ports else all_ports
 
@@ -107,6 +111,7 @@ class SerialComm(BtComm):
             return False
         try:
             self._conn.write(cmd[0].encode("utf-8"))  # type: ignore[union-attr]
+            self._conn.flush()  # force OS to push byte to HC-05
             log.debug("Enviado: %r", cmd[0])
             return True
         except (serial.SerialException, OSError) as e:
@@ -115,12 +120,14 @@ class SerialComm(BtComm):
 
     def disconnect(self) -> None:
         """Close serial port if open."""
+        log.info("Desconectando...")
         if self._conn and self._conn.is_open:
             try:
                 self._conn.close()
             except Exception:
                 pass
         self._conn = None
+        log.info("Desconectado.")
 
     @property
     def is_connected(self) -> bool:
