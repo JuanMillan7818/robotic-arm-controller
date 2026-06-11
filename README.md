@@ -107,17 +107,26 @@ No requiere OpenCV ni MediaPipe.
 
 ---
 
-## 🖐️ Control por Gestos (Desktop/Web)
+## 🖐️ Control por Gestos (Desktop)
 
-Usa **MediaPipe Hands** para controlar la PINZA en tiempo real:
+Usa **MediaPipe Hands** con ambas manos para controlar 5 ejes en tiempo real.
 
-| Gesto | Resultado |
-|-------|-----------|
-| Pulgar + Índice juntos | `PINZA:0\n` (cerrado) |
-| Pulgar + Índice separados | `PINZA:180\n` (abierto) |
+### Mano Izquierda
 
-Calibración: editar `HandTracker.DIST_MIN` / `DIST_MAX` en
-[`app/gesture/hand_tracker.py`](app/gesture/hand_tracker.py).
+| Servo | ID | Señal detectada | Gesto | Rango |
+|-------|----|----------------|-------|-------|
+| Base de rotación | `BASE` | Posición X de la muñeca | Mover mano izquierda ← → | 0° – 180° |
+| Codo | `BASE_PRINCIPAL` | Apertura promedio de 4 dedos | Abrir / cerrar mano izquierda | 10° – 170° |
+
+### Mano Derecha
+
+| Servo | ID | Señal detectada | Gesto | Rango |
+|-------|----|----------------|-------|-------|
+| Hombro | `EXT1` | Extensión promedio de 4 dedos | Abrir / cerrar mano derecha (puño → mano abierta) | 0° – 180° |
+| Muñeca | `EXT2` | Posición X de la muñeca | Mover mano derecha ← → | 10° – 160° |
+| Pinza | `PINZA` | Extensión de meñique y/o anular (con índice+medio cerrados) | Puño + **meñique** = abrir · Puño + **meñique y anular** = cerrar | 110° – 145° |
+
+> **Nota PINZA:** el gesto requiere que índice y medio estén cerrados para evitar conflicto con `EXT1`. No se actualiza si la mano está semiabierta.
 
 ---
 
