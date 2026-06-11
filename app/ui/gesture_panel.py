@@ -37,10 +37,10 @@ STEP = 15  # Arduino step size per command
 _MOTORS: dict[str, dict] = {
     # deadband: angle diff needed to trigger one step (≥ STEP avoids jitter oscillation)
     # min_interval: min seconds between commands per motor
-    "BASE":           {"plus": "A", "minus": "D", "init": 90,  "min": 0,   "max": 180, "deadband": 20, "min_interval": 0.2},
-    "BASE_PRINCIPAL": {"plus": "W", "minus": "S", "init": 90,  "min": 10,  "max": 170, "deadband": 20, "min_interval": 0.2},
-    "EXT1":           {"plus": "K", "minus": "I", "init": 90,  "min": 0,   "max": 180, "deadband": 15, "min_interval": 0.15},
-    "EXT2":           {"plus": "L", "minus": "J", "init": 90,  "min": 10,  "max": 160, "deadband": 15, "min_interval": 0.15},
+    "BASE":           {"plus": "A", "minus": "D", "init": 90,  "min": 0,   "max": 180, "deadband": 10, "min_interval": 0.2},
+    "BASE_PRINCIPAL": {"plus": "W", "minus": "S", "init": 90,  "min": 10,  "max": 170, "deadband": 10, "min_interval": 0.2},
+    "EXT1":           {"plus": "K", "minus": "I", "init": 90,  "min": 0,   "max": 150, "deadband": 10, "min_interval": 0.15},
+    "EXT2":           {"plus": "L", "minus": "J", "init": 90,  "min": 10,  "max": 160, "deadband": 10, "min_interval": 0.15},
     "PINZA":          {"plus": "C", "minus": "O", "init": 110, "min": 110, "max": 145, "deadband": 10, "min_interval": 0.5},
 }
 
@@ -194,7 +194,7 @@ class GesturePanel(ft.Container):
                         ft.Text("Gestos", size=11, color=C_TEXT2, weight=ft.FontWeight.W_600),
                         ft.Text(
                             "✋ Izquierda: X posición → Base  ·  Abierta/Puño → Base Principal\n"
-                            "🤚 Derecha: Abierta/Puño → Ext.1  ·  Inclinación → Ext.2\n"
+                            "🤚 Derecha: Abierta/Puño → Ext.1  ·  X posición → Ext.2\n"
                             "   ☝️ Solo índice → Pinza abre  ·  Índice+Medio → Pinza cierra",
                             size=11, color=C_TEXT2,
                         ),

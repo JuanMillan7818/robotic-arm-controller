@@ -7,7 +7,7 @@ Gesture mapping (single hand):
   BASE_PRINCIPAL wrist Y position (inverted)    → 10–170°
   EXT1           middle-finger extension ratio  → 0–180°
   EXT2           hand roll (knuckle line angle) → 10–160°
-  PINZA          thumb–index tip distance       → 110–145°
+  PINZA          pinky(+ring) extension         → 110–145°
 
 Callbacks fire from background thread — caller must post to event loop.
 """
@@ -42,8 +42,8 @@ _EXT1_RATIO_MAX = 1.9   # slightly below open ratio → open hand clamps to 180�
 _FINGER_EXT_THRESH = 1.5  # ratio threshold: finger considered extended
 _BP_OPEN_MIN = 1.3  # fist: avg finger ratio ~1.0–1.3
 _BP_OPEN_MAX = 2.2  # fully open: avg ratio ~2.0–2.5
-_EXT2_DEG_MIN = -60.0
-_EXT2_DEG_MAX = 60.0
+_EXT2_X_MIN = 15.0   # wrist near right edge → 10°
+_EXT2_X_MAX = 180.0  # wrist near left edge → 160°
 
 
 def _check_camera_permission() -> str | None:
@@ -89,7 +89,17 @@ def _detect_left(lm: list) -> dict[str, int]:
     pky_mcp = lm[_PINKY_MCP]
     pky_tip = lm[_PINKY_TIP]
 
-    base = max(0, min(180, int((1.0 - wrist.x) * 180)))
+    raw_base = wrist.x * 180
+    BASE_MIN_REAL = 15
+    BASE_MAX_REAL = 180
+
+    base = int(
+        (raw_base - BASE_MIN_REAL)
+        * 180
+        / (BASE_MAX_REAL - BASE_MIN_REAL)
+    )
+
+    base = max(0, min(180, base))
 
     avg_open = (
         _ext_ratio(wrist, idx_mcp, idx_tip)
@@ -104,9 +114,8 @@ def _detect_left(lm: list) -> dict[str, int]:
 
 
 def _detect_right(lm: list) -> dict[str, int]:
-    """Right hand → EXT1 (open/close) + EXT2 (roll) + PINZA (thumb-index)."""
+    """Right hand → EXT1 (open/close) + EXT2 (wrist X) + PINZA (finger count)."""
     wrist = lm[_WRIST]
-    thumb = lm[_THUMB_TIP]
     idx_mcp = lm[_INDEX_MCP]
     idx_tip = lm[_INDEX_TIP]
     mid_mcp = lm[_MID_MCP]
@@ -124,24 +133,31 @@ def _detect_right(lm: list) -> dict[str, int]:
         + _ext_ratio(wrist, pky_mcp, pky_tip)
     ) / 4.0
     avg_c = max(_EXT1_RATIO_MIN, min(_EXT1_RATIO_MAX, avg_open))
-    ext1 = int((avg_c - _EXT1_RATIO_MIN) / (_EXT1_RATIO_MAX - _EXT1_RATIO_MIN) * 180)
+    ext1 = int((avg_c - _EXT1_RATIO_MIN) /
+               (_EXT1_RATIO_MAX - _EXT1_RATIO_MIN) * 180)
 
-    roll_deg = math.degrees(math.atan2(-(idx_mcp.y - pky_mcp.y), idx_mcp.x - pky_mcp.x))
-    roll_c = max(_EXT2_DEG_MIN, min(_EXT2_DEG_MAX, roll_deg))
-    ext2 = int((roll_c - _EXT2_DEG_MIN) / (_EXT2_DEG_MAX - _EXT2_DEG_MIN) * 150 + 10)
+    # EXT2: wrist X position — izquierda=160°, derecha=10° (same convention as BASE on left hand)
+    raw_ext2 = wrist.x * 180
+    ext2 = int((raw_ext2 - _EXT2_X_MIN) * 150 /
+               (_EXT2_X_MAX - _EXT2_X_MIN) + 10)
+    ext2 = max(10, min(160, ext2))
 
-    # PINZA: finger count gesture (hand mostly closed)
-    #   solo índice estirado  → abrir (110°)
-    #   índice + medio estirados → cerrar (145°)
+    # PINZA: meñique/anular con índice+medio ABAJO (no dispara en mano abierta)
+    #   solo meñique estirado, índice+medio cerrados  → abrir (110°)
+    #   meñique+anular estirados, índice+medio cerrados → cerrar (145°)
     idx_up = _ext_ratio(wrist, idx_mcp, idx_tip) > _FINGER_EXT_THRESH
     mid_up = _ext_ratio(wrist, mid_mcp, mid_tip) > _FINGER_EXT_THRESH
+    rng_up = _ext_ratio(wrist, rng_mcp, rng_tip) > _FINGER_EXT_THRESH
+    pky_up = _ext_ratio(wrist, pky_mcp, pky_tip) > _FINGER_EXT_THRESH
+    hand_open = idx_up or mid_up  # bloquea PINZA durante EXT1
 
     result: dict[str, int] = {"EXT1": ext1, "EXT2": ext2}
-    if idx_up and mid_up:
-        result["PINZA"] = 145   # índice+medio → cerrar
-    elif idx_up:
-        result["PINZA"] = 110   # solo índice → abrir
-    # else: gesto ambiguo → no actualizar PINZA
+    if not hand_open:
+        if pky_up and rng_up:
+            result["PINZA"] = 145   # meñique+anular, resto cerrado → cerrar
+        elif pky_up:
+            result["PINZA"] = 110   # solo meñique, resto cerrado → abrir
+    # else: mano abierta/semiabierta → no actualizar PINZA
     return result
 
 
@@ -201,7 +217,8 @@ class HandTracker:
         from mediapipe.tasks.python import vision as mp_vision
 
         model_path = (
-            Path(__file__).parent.parent.parent / "assets" / "hand_landmarker.task"
+            Path(__file__).parent.parent.parent /
+            "assets" / "hand_landmarker.task"
         )
         model_path.parent.mkdir(parents=True, exist_ok=True)
         if not model_path.exists():
@@ -214,7 +231,8 @@ class HandTracker:
             log.info("Modelo descargado: %s", model_path)
 
         options = mp_vision.HandLandmarkerOptions(
-            base_options=mp_python.BaseOptions(model_asset_path=str(model_path)),
+            base_options=mp_python.BaseOptions(
+                model_asset_path=str(model_path)),
             running_mode=mp_vision.RunningMode.VIDEO,
             num_hands=2,
             min_hand_detection_confidence=0.65,
@@ -263,7 +281,8 @@ class HandTracker:
             (9, 13),
             (13, 17),
         ]
-        HIGHLIGHT = {_THUMB_TIP, _INDEX_TIP, _MID_TIP, _WRIST, _INDEX_MCP, _PINKY_MCP}
+        HIGHLIGHT = {_THUMB_TIP, _INDEX_TIP,
+                     _MID_TIP, _WRIST, _INDEX_MCP, _PINKY_MCP}
 
         consecutive_failures = 0
         try:
@@ -311,7 +330,8 @@ class HandTracker:
                     for a, b in CONNECTIONS:
                         cv2.line(frame, pts[a], pts[b], color_hand, 2)
                     for i, pt in enumerate(pts):
-                        col = (0, 212, 255) if i in HIGHLIGHT else (200, 200, 200)
+                        col = (0, 212, 255) if i in HIGHLIGHT else (
+                            200, 200, 200)
                         cv2.circle(frame, pt, 5, col, -1)
 
                     if is_right:
@@ -322,7 +342,8 @@ class HandTracker:
                 # HUD
                 cv2.rectangle(frame, (0, 0), (w, 120), (10, 14, 26), -1)
                 if gestures:
-                    hands_str = " · ".join(detected_labels) if detected_labels else ""
+                    hands_str = " · ".join(
+                        detected_labels) if detected_labels else ""
                     cv2.putText(
                         frame,
                         hands_str,
@@ -342,7 +363,8 @@ class HandTracker:
                             f"EXT1:{gestures.get('EXT1', -1):3d}  EXT2:{gestures.get('EXT2', -1):3d}",
                             (0, 180, 220),
                         ),
-                        (f"PINZA:{gestures.get('PINZA', -1):3d}", (0, 150, 190)),
+                        (f"PINZA:{gestures.get('PINZA', -1):3d}",
+                         (0, 150, 190)),
                     ]
                     for i, (txt, col) in enumerate(hud):
                         cv2.putText(
@@ -370,7 +392,8 @@ class HandTracker:
                 if gestures:
                     self._on_gesture(gestures)
 
-                _, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 65])
+                _, buf = cv2.imencode(
+                    ".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 65])
                 self._on_frame(base64.b64encode(buf.tobytes()).decode("ascii"))
 
         finally:

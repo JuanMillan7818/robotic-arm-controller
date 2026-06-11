@@ -38,7 +38,7 @@ SERVOS: list[dict] = [
     },
     {
         "id": "BASE_PRINCIPAL",
-        "label": "Base de avance",
+        "label": "Codo",
         "sub": "Canales 3+6 · W/S",
         "icon": ft.Icons.ARROW_UPWARD,
         "plus": "W",
@@ -56,11 +56,11 @@ SERVOS: list[dict] = [
         "minus": "I",
         "init": 90,
         "min": 0,
-        "max": 180,
+        "max": 150,
     },
     {
         "id": "EXT2",
-        "label": "Codo",
+        "label": "Muñeca",
         "sub": "Canal 12 · L/J",
         "icon": ft.Icons.GESTURE,
         "plus": "L",
@@ -220,7 +220,8 @@ class ServoPanel(ft.Container):
                                     ft.Icon(
                                         ft.Icons.RESTART_ALT, size=14, color=C_TEXT2
                                     ),
-                                    ft.Text("Restablecer", size=11, color=C_TEXT2),
+                                    ft.Text("Restablecer", size=11,
+                                            color=C_TEXT2),
                                 ],
                                 spacing=4,
                                 tight=True,
@@ -286,7 +287,8 @@ class ServoPanel(ft.Container):
                                         weight=ft.FontWeight.W_600,
                                         color=C_TEXT,
                                     ),
-                                    ft.Text(servo["sub"], size=10, color=C_TEXT2),
+                                    ft.Text(servo["sub"],
+                                            size=10, color=C_TEXT2),
                                 ],
                                 expand=True,
                             ),
@@ -314,7 +316,8 @@ class ServoPanel(ft.Container):
         # ceil so edge positions (e.g. PINZA 110→145) always reach target;
         # Arduino constrain() clamps any overshoot on the hardware side.
         delta = (
-            math.ceil(abs(diff) / STEP) * (1 if diff > 0 else -1) if diff != 0 else 0
+            math.ceil(abs(diff) / STEP) * (1 if diff >
+                                           0 else -1) if diff != 0 else 0
         )
         if delta == 0:
             return
@@ -340,7 +343,8 @@ class ServoPanel(ft.Container):
         def _send() -> None:
             for _ in range(n):
                 self._comm.send(char)
-                time.sleep(0.06)  # 60ms between chars — Arduino loop runs every 15ms
+                # 60ms between chars — Arduino loop runs every 15ms
+                time.sleep(0.06)
 
         threading.Thread(target=_send, daemon=True).start()
 
@@ -414,7 +418,8 @@ class ServoPanel(ft.Container):
 
     def _refresh_devices(self, _: ft.ControlEvent | None) -> None:
         self._device_dd.options = [
-            ft.DropdownOption(key="__scanning__", text="Buscando dispositivos...")
+            ft.DropdownOption(key="__scanning__",
+                              text="Buscando dispositivos...")
         ]
         self._device_dd.value = "__scanning__"
         self._device_dd.update()
@@ -463,7 +468,8 @@ class ServoPanel(ft.Container):
             self._connect_btn.update()
 
             def _do_connect() -> None:
-                ok = self._comm.connect(self._selected_addr)  # type: ignore[arg-type]
+                # type: ignore[arg-type]
+                ok = self._comm.connect(self._selected_addr)
                 self._set_status(connected=ok)
                 txt_color = "#E2E8F0" if ok else "#0A0E1A"
                 self._btn_icon.name = (

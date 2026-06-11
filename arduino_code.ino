@@ -75,8 +75,8 @@ void loop() {
         break;
 
       // --- Primera Extensión ---
-      case 'I': case 'i': objExt1 = constrain(objExt1 - 15, 0, 180); break;
-      case 'K': case 'k': objExt1 = constrain(objExt1 + 15, 0, 180); break;
+      case 'I': case 'i': objExt1 = constrain(objExt1 - 15, 0, 150); break;
+      case 'K': case 'k': objExt1 = constrain(objExt1 + 15, 0, 150); break;
 
       // --- Segunda Extensión ---
       case 'J': case 'j': objExt2 = constrain(objExt2 - 15, 10, 160); break;
