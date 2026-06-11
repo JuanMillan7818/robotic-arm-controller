@@ -422,7 +422,7 @@ class ServoPanel(ft.Container):
                               text="Buscando dispositivos...")
         ]
         self._device_dd.value = "__scanning__"
-        self._device_dd.update()
+        self._page.update()
 
         def _scan() -> None:
             self._devices = self._comm.list_devices()
@@ -438,9 +438,13 @@ class ServoPanel(ft.Container):
                         key="__none__", text="Sin dispositivos encontrados"
                     )
                 ]
-            self._device_dd.options = opts
-            self._device_dd.value = None
-            self._device_dd.update()
+
+            async def _ui() -> None:
+                self._device_dd.options = opts
+                self._device_dd.value = None
+                self._page.update()
+
+            self._page.run_task(_ui)
 
         threading.Thread(target=_scan, daemon=True).start()
 
@@ -458,29 +462,33 @@ class ServoPanel(ft.Container):
             self._btn_label.value = "CONECTAR"
             self._btn_label.color = "#0A0E1A"
             self._connect_btn.bgcolor = C_ACCENT
-            self._connect_btn.update()
+            self._page.update()
         else:
             if not self._selected_addr:
                 return
             self._btn_label.value = "Conectando..."
             self._btn_icon.name = ft.Icons.HOURGLASS_TOP
             self._connect_btn.disabled = True
-            self._connect_btn.update()
+            self._page.update()
 
             def _do_connect() -> None:
                 # type: ignore[arg-type]
                 ok = self._comm.connect(self._selected_addr)
-                self._set_status(connected=ok)
                 txt_color = "#E2E8F0" if ok else "#0A0E1A"
-                self._btn_icon.name = (
-                    ft.Icons.BLUETOOTH_DISABLED if ok else ft.Icons.BLUETOOTH
-                )
-                self._btn_icon.color = txt_color
-                self._btn_label.value = "DESCONECTAR" if ok else "CONECTAR"
-                self._btn_label.color = txt_color
-                self._connect_btn.bgcolor = C_RED if ok else C_ACCENT
-                self._connect_btn.disabled = False
-                self._connect_btn.update()
+
+                async def _ui() -> None:
+                    self._set_status(connected=ok)
+                    self._btn_icon.name = (
+                        ft.Icons.BLUETOOTH_DISABLED if ok else ft.Icons.BLUETOOTH
+                    )
+                    self._btn_icon.color = txt_color
+                    self._btn_label.value = "DESCONECTAR" if ok else "CONECTAR"
+                    self._btn_label.color = txt_color
+                    self._connect_btn.bgcolor = C_RED if ok else C_ACCENT
+                    self._connect_btn.disabled = False
+                    self._page.update()
+
+                self._page.run_task(_ui)
 
             threading.Thread(target=_do_connect, daemon=True).start()
 
@@ -493,5 +501,4 @@ class ServoPanel(ft.Container):
             self._status_dot.bgcolor = C_RED
             self._status_label.value = "Desconectado"
             self._status_label.color = C_RED
-        self._status_dot.update()
-        self._status_label.update()
+        self._page.update()
