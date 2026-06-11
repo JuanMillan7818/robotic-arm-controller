@@ -16,7 +16,6 @@ Android: ServoPanel full screen.
 from __future__ import annotations
 
 import atexit
-import threading
 import flet as ft
 import logging
 
@@ -231,13 +230,12 @@ def build_layout(page: ft.Page) -> None:
 
     atexit.register(_shutdown)
 
-    def _on_window_event(e: ft.WindowEvent) -> None:
-        if e.data == "close":
-            # Run shutdown off the event thread — join() would block it otherwise
-            def _do() -> None:
-                _shutdown()
-                page.window.destroy()
-            threading.Thread(target=_do, daemon=True).start()
+    async def _on_window_event(e: ft.WindowEvent) -> None:
+        if e.type == ft.WindowEventType.CLOSE:
+            # Run blocking cleanup in thread pool — avoid blocking event loop
+            import asyncio
+            await asyncio.get_event_loop().run_in_executor(None, _shutdown)
+            await page.window.destroy()
 
     page.window.prevent_close = True
     page.window.on_event = _on_window_event
