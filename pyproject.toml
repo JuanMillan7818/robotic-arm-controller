@@ -1,18 +1,22 @@
 [project]
 name = "robotic-arm-controller"
-version = "0.1.0"
+version = "1.0.0"
 description = "Controlador multiplataforma para brazo robótico — Flet + MediaPipe + Bluetooth HC-05"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "flet>=0.85",
-    "opencv-python==4.13.0.92",
-    "mediapipe==0.10.35",
     "pyserial>=3.5",
 ]
 
 [project.scripts]
 robotic-arm = "main:main"
+
+[dependency-groups]
+desktop = [
+    "opencv-python==4.13.0.92",
+    "mediapipe==0.10.35",
+]
 
 [tool.uv]
 package = true
@@ -23,13 +27,14 @@ include = ["app*"]
 
 [tool.flet]
 org = "com.roboticarm"
+icon = "assets/icon.png"
 
 [tool.flet.android]
-permissions = [
-    "android.permission.CAMERA",
-    "android.permission.BLUETOOTH",
-    "android.permission.BLUETOOTH_ADMIN",
-    "android.permission.BLUETOOTH_CONNECT",
-    "android.permission.BLUETOOTH_SCAN",
-    "android.permission.ACCESS_FINE_LOCATION",
-]
+dependencies = ["pyjnius"]
+
+[tool.flet.android.permission]
+"android.permission.BLUETOOTH" = true
+"android.permission.BLUETOOTH_ADMIN" = true
+"android.permission.BLUETOOTH_CONNECT" = true
+"android.permission.BLUETOOTH_SCAN" = true
+"android.permission.ACCESS_FINE_LOCATION" = true

@@ -1,0 +1,13 @@
+# flet.yaml
+app:
+  name: "Controlador Brazo"
+  version: "1.0.0"
+
+android:
+  package_name: com.robotica.arm_controller
+  permissions:
+    - android.permission.BLUETOOTH
+    - android.permission.BLUETOOTH_ADMIN
+    - android.permission.BLUETOOTH_CONNECT
+    - android.permission.BLUETOOTH_SCAN
+    - android.permission.ACCESS_FINE_LOCATION

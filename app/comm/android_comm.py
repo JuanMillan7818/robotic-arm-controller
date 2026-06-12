@@ -10,37 +10,35 @@ Protocol: single ASCII char per command (A/D/W/S/K/I/J/L/C/O).
 """
 from __future__ import annotations
 
+import logging
+
 from app.comm.base import BtComm
+
+log = logging.getLogger(__name__)
 
 # SPP (Serial Port Profile) service UUID — standard for HC-05
 _SPP_UUID = "00001101-0000-1000-8000-00805F9B34FB"
 
 _BT_PERMISSIONS = [
+    "android.permission.BLUETOOTH",
+    "android.permission.BLUETOOTH_ADMIN",
     "android.permission.BLUETOOTH_CONNECT",
     "android.permission.BLUETOOTH_SCAN",
     "android.permission.ACCESS_FINE_LOCATION",
 ]
 
 
-def _request_android_permissions() -> None:
-    """Request Bluetooth runtime permissions (Android 12+ requires BLUETOOTH_CONNECT/SCAN)."""
+def _request_permissions() -> None:
+    """Request BT runtime permissions via python-for-android (p4a built-in).
+    Uses string literals — avoids missing Permission.* constants on older p4a.
+    """
     try:
-        from jnius import autoclass  # type: ignore[import]
-        PythonActivity = autoclass("org.kivy.android.PythonActivity")
-        ActivityCompat = autoclass("androidx.core.app.ActivityCompat")
-        ContextCompat = autoclass("androidx.core.content.ContextCompat")
-        PackageManager = autoclass("android.content.pm.PackageManager")
+        from android.permissions import request_permissions  # type: ignore[import]
+        request_permissions(_BT_PERMISSIONS)
+        log.info("BT permissions requested")
+    except Exception as exc:
+        log.warning("android.permissions unavailable: %s", exc)
 
-        activity = PythonActivity.mActivity
-        needed = [
-            p for p in _BT_PERMISSIONS
-            if ContextCompat.checkSelfPermission(activity, p)
-            != PackageManager.PERMISSION_GRANTED
-        ]
-        if needed:
-            ActivityCompat.requestPermissions(activity, needed, 1)
-    except Exception:
-        pass  # not on Android or pyjnius unavailable
 
 
 class AndroidComm(BtComm):
@@ -50,32 +48,46 @@ class AndroidComm(BtComm):
         self._socket = None
         self._out_stream = None
         self._connected = False
-        _request_android_permissions()
 
     # ── Device discovery ────────────────────────────────────────────────────
 
     def list_devices(self) -> list[dict[str, str]]:
-        """Return paired (bonded) Bluetooth devices visible to Android."""
+        """Return paired (bonded) Bluetooth devices.
+
+        Requests permissions on every call if not yet granted (async dialog).
+        Uses try/except instead of pre-check to avoid false negatives.
+        """
+        _request_permissions()
         try:
             from jnius import autoclass  # type: ignore[import]
 
             BluetoothAdapter = autoclass("android.bluetooth.BluetoothAdapter")
+
             adapter = BluetoothAdapter.getDefaultAdapter()
             if adapter is None:
+                log.error("No BluetoothAdapter found")
                 return []
+
             paired_set = adapter.getBondedDevices()
-            if paired_set is None:
+            if paired_set is None or paired_set.size() == 0:
+                log.info("No paired BT devices")
                 return []
-            devices = []
-            for device in paired_set.toArray():
-                devices.append(
-                    {
-                        "name": device.getName() or "Desconocido",
-                        "address": device.getAddress(),
-                    }
-                )
+
+            BluetoothDevice = autoclass("android.bluetooth.BluetoothDevice")
+            devices: list[dict[str, str]] = []
+            iterator = paired_set.iterator()
+            while iterator.hasNext():
+                from jnius import cast  # type: ignore[import]
+                dev = cast(BluetoothDevice, iterator.next())
+                name = dev.getName() or "Desconocido"
+                addr = dev.getAddress()
+                devices.append({"name": name, "address": addr})
+                log.info("BT device: %s  %s", name, addr)
+
             return devices
-        except Exception:
+
+        except Exception as exc:
+            log.error("list_devices error: %s", exc)
             return []
 
     # ── Connection ──────────────────────────────────────────────────────────
@@ -100,8 +112,10 @@ class AndroidComm(BtComm):
             self._socket.connect()
             self._out_stream = self._socket.getOutputStream()
             self._connected = True
+            log.info("BT connected to %s", address)
             return True
-        except Exception:
+        except Exception as exc:
+            log.error("BT connect error (%s): %s", address, exc)
             self._connected = False
             return False
 
@@ -116,7 +130,8 @@ class AndroidComm(BtComm):
             self._out_stream.write(ord(cmd[0]))
             self._out_stream.flush()
             return True
-        except Exception:
+        except Exception as exc:
+            log.error("BT send error: %s", exc)
             return False
 
     def disconnect(self) -> None:

@@ -127,10 +127,70 @@ def build_layout(page: ft.Page) -> None:
 
     # ── Content ───────────────────────────────────────────────────────────────
     if is_android:
-        content = ft.Container(
+        ref_content_a = _build_reference_tab()
+        ctrl_content_a = ft.Container(
             expand=True,
             padding=ft.Padding.all(12),
             content=servo_panel,
+        )
+        ref_content_a.visible = False
+
+        def _tab_style_a(active: bool) -> ft.ButtonStyle:
+            return ft.ButtonStyle(
+                color=C_ACCENT if active else C_TEXT2,
+                bgcolor={"": C_SURFACE if active else "transparent"},
+                shape=ft.RoundedRectangleBorder(radius=8),
+                padding=ft.Padding.symmetric(horizontal=16, vertical=8),
+            )
+
+        tab_ctrl_btn = ft.TextButton(
+            content=ft.Row(
+                [ft.Icon(ft.Icons.PRECISION_MANUFACTURING, size=16), ft.Text("Control", size=13)],
+                spacing=6, tight=True,
+            ),
+            style=_tab_style_a(True),
+        )
+        tab_ref_btn_a = ft.TextButton(
+            content=ft.Row(
+                [ft.Icon(ft.Icons.SCHEMA, size=16), ft.Text("Referencia", size=13)],
+                spacing=6, tight=True,
+            ),
+            style=_tab_style_a(False),
+        )
+
+        def _select_tab_a(idx: int, _: ft.ControlEvent | None = None) -> None:
+            ctrl_content_a.visible = idx == 0
+            ref_content_a.visible = idx == 1
+            tab_ctrl_btn.style = _tab_style_a(idx == 0)
+            tab_ref_btn_a.style = _tab_style_a(idx == 1)
+            page.update()
+
+        tab_ctrl_btn.on_click = lambda e: _select_tab_a(0, e)
+        tab_ref_btn_a.on_click = lambda e: _select_tab_a(1, e)
+
+        content = ft.Container(
+            expand=True,
+            bgcolor=C_BG,
+            border=ft.Border.all(1, C_BORDER),
+            border_radius=16,
+            margin=ft.Margin.all(8),
+            content=ft.Column(
+                expand=True,
+                spacing=0,
+                controls=[
+                    ft.Container(
+                        bgcolor="#080C18",
+                        border_radius=ft.BorderRadius(16, 16, 0, 0),
+                        padding=ft.Padding.symmetric(horizontal=8, vertical=6),
+                        content=ft.Row(controls=[tab_ctrl_btn, tab_ref_btn_a], spacing=4),
+                    ),
+                    ft.Divider(height=1, color=C_BORDER),
+                    ft.Stack(
+                        expand=True,
+                        controls=[ctrl_content_a, ref_content_a],
+                    ),
+                ],
+            ),
         )
     else:
         # ── Manual tabs (Flet 0.85 Tabs API incompatible with content) ────────
@@ -242,9 +302,12 @@ def build_layout(page: ft.Page) -> None:
 
     # ── Assemble ──────────────────────────────────────────────────────────────
     page.add(
-        ft.Column(
+        ft.SafeArea(
             expand=True,
-            spacing=0,
-            controls=[top_bar, content],
+            content=ft.Column(
+                expand=True,
+                spacing=0,
+                controls=[top_bar, content],
+            ),
         )
     )
